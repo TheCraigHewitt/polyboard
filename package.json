@@ -1,0 +1,59 @@
+{
+  "name": "polyboard",
+  "version": "0.1.0",
+  "description": "Real-time dashboard for managing OpenClaw multi-agent systems",
+  "type": "module",
+  "bin": {
+    "polyboard": "./dist/bin/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "concurrently \"tsx watch src/server.ts\" \"vite --port 3000\"",
+    "dev:api": "tsx watch src/server.ts",
+    "dev:client": "vite --port 3000",
+    "build": "vite build && tsc -p tsconfig.node.json",
+    "start": "node dist/bin/cli.js",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "openclaw",
+    "dashboard",
+    "agents",
+    "kanban",
+    "mission-control"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@tailwindcss/postcss": "^4.1.18",
+    "chokidar": "^5.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "uuid": "^13.0.0",
+    "ws": "^8.19.0",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.1.3",
+    "autoprefixer": "^10.4.24",
+    "concurrently": "^9.2.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
