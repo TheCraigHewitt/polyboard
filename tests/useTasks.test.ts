@@ -76,7 +76,6 @@ describe('useTasks', () => {
   });
 
   it('saves tasks with baseUpdatedAt after changes', async () => {
-    vi.useFakeTimers();
     const fetchMock = vi.fn(async (_input: RequestInfo, init?: RequestInit) => {
       if (!init || !init.method) {
         return {
@@ -107,13 +106,15 @@ describe('useTasks', () => {
       result.current.createTask('New task');
     });
 
-    await vi.runAllTimersAsync();
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
-    expect(fetchMock).toHaveBeenCalled();
+    await waitFor(() => {
+      const hasPut = fetchMock.mock.calls.some((call) => call[1]?.method === 'PUT');
+      expect(hasPut).toBe(true);
+    });
   });
 
   it('reloads tasks on conflict', async () => {
-    vi.useFakeTimers();
     let putCalled = false;
     const fetchMock = vi.fn(async (_input: RequestInfo, init?: RequestInit) => {
       if (!init || !init.method) {
@@ -165,7 +166,7 @@ describe('useTasks', () => {
       result.current.createTask('Local task');
     });
 
-    await vi.runAllTimersAsync();
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     await waitFor(() => expect(useStore.getState().tasks[0].id).toBe('server'));
   });
