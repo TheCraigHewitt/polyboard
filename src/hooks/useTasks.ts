@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useStore } from '../store';
 import type { Task, TaskStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { apiFetch } from '../services/api';
 
 const DEBOUNCE_DELAY = 500;
 
@@ -17,18 +18,25 @@ export function useTasks() {
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const suppressSaveRef = useRef(false);
+  const lastServerUpdatedAtRef = useRef<string | null>(null);
 
   // Load tasks on mount
   useEffect(() => {
     async function loadTasks() {
       try {
-        const response = await fetch('/api/tasks');
+        const response = await apiFetch('/api/tasks');
         if (response.ok) {
           const data = await response.json();
+          suppressSaveRef.current = true;
           setTasks(data.tasks || []);
+          lastServerUpdatedAtRef.current = data.updatedAt || null;
         }
       } catch (err) {
         console.error('Failed to load tasks:', err);
+      } finally {
+        hasLoadedRef.current = true;
       }
     }
     loadTasks();
@@ -37,19 +45,56 @@ export function useTasks() {
   // Debounced save
   const saveTasks = useCallback(async (tasksToSave: Task[]) => {
     try {
-      const response = await fetch('/api/tasks', {
+      if (!lastServerUpdatedAtRef.current) {
+        try {
+          const res = await apiFetch('/api/tasks');
+          if (res.ok) {
+            const data = await res.json();
+            lastServerUpdatedAtRef.current = data.updatedAt || null;
+          }
+        } catch {
+          // Ignore refresh failure
+        }
+      }
+
+      const baseUpdatedAt = lastServerUpdatedAtRef.current;
+      if (!baseUpdatedAt) {
+        pendingSaveRef.current = false;
+        console.error('Missing baseUpdatedAt, aborting save');
+        return;
+      }
+
+      const response = await apiFetch('/api/tasks', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks: tasksToSave }),
+        body: JSON.stringify({ tasks: tasksToSave, baseUpdatedAt }),
       });
+      if (response.status === 409) {
+        const data = await response.json();
+        if (data?.current?.tasks) {
+          suppressSaveRef.current = true;
+          setTasks(data.current.tasks);
+          lastServerUpdatedAtRef.current = data.current.updatedAt || null;
+        }
+        pendingSaveRef.current = false;
+        console.warn('Tasks conflict detected. Reloaded latest tasks.');
+        return;
+      }
+      if (response.status === 428) {
+        pendingSaveRef.current = false;
+        console.error('Server requires baseUpdatedAt for saving tasks.');
+        return;
+      }
       if (!response.ok) {
         throw new Error('Failed to save tasks');
       }
+      const data = await response.json();
+      lastServerUpdatedAtRef.current = data.updatedAt || lastServerUpdatedAtRef.current;
       pendingSaveRef.current = false;
     } catch (err) {
       console.error('Failed to save tasks:', err);
     }
-  }, []);
+  }, [setTasks]);
 
   const debouncedSave = useCallback((tasksToSave: Task[]) => {
     pendingSaveRef.current = true;
@@ -63,9 +108,14 @@ export function useTasks() {
 
   // Save when tasks change
   useEffect(() => {
-    if (tasks.length > 0) {
-      debouncedSave(tasks);
+    if (!hasLoadedRef.current) {
+      return;
     }
+    if (suppressSaveRef.current) {
+      suppressSaveRef.current = false;
+      return;
+    }
+    debouncedSave(tasks);
   }, [tasks, debouncedSave]);
 
   const createTask = useCallback((

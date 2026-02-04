@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import type { AgentStatus } from '../types';
+import { apiFetch } from '../services/api';
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
@@ -11,28 +12,29 @@ export function useAgentStatus() {
 
   useEffect(() => {
     async function pollStatus() {
-      for (const agent of agents) {
-        try {
-          const response = await fetch(`/api/agents/${agent.id}/status`);
-          if (response.ok) {
-            const status: AgentStatus = await response.json();
-            setAgentStatus(agent.id, status);
-          } else {
-            // No status file, mark as offline
+      await Promise.all(
+        agents.map(async (agent) => {
+          try {
+            const response = await apiFetch(`/api/agents/${agent.id}/status`);
+            if (response.ok) {
+              const status: AgentStatus = await response.json();
+              setAgentStatus(agent.id, status);
+              return;
+            }
+            setAgentStatus(agent.id, {
+              agentId: agent.id,
+              status: 'offline',
+              lastHeartbeat: new Date().toISOString(),
+            });
+          } catch {
             setAgentStatus(agent.id, {
               agentId: agent.id,
               status: 'offline',
               lastHeartbeat: new Date().toISOString(),
             });
           }
-        } catch {
-          setAgentStatus(agent.id, {
-            agentId: agent.id,
-            status: 'offline',
-            lastHeartbeat: new Date().toISOString(),
-          });
-        }
-      }
+        })
+      );
     }
 
     // Initial poll

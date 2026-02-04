@@ -4,6 +4,7 @@ import { useStore } from '../../store';
 import { StatusIndicator } from '../Sidebar/StatusIndicator';
 import { ActivityFeed } from './ActivityFeed';
 import { MemoryViewer } from './MemoryViewer';
+import { apiFetch } from '../../services/api';
 
 type Tab = 'activity' | 'memory' | 'identity';
 
@@ -17,7 +18,7 @@ export function AgentDetail() {
 
   useEffect(() => {
     if (selectedAgentId) {
-      fetch(`/api/agents/${selectedAgentId}/identity`)
+      apiFetch(`/api/agents/${selectedAgentId}/identity`)
         .then((res) => res.ok ? res.json() : null)
         .then((data) => setIdentity(data?.content || null))
         .catch(() => setIdentity(null));
@@ -39,7 +40,7 @@ export function AgentDetail() {
 
     setSending(true);
     try {
-      const res = await fetch('/api/gateway/invoke', {
+      const res = await apiFetch('/api/gateway/invoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

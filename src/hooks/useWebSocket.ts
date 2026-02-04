@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../store';
+import { apiFetch } from '../services/api';
 
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -13,13 +14,14 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldReconnectRef = useRef(true);
 
   const setWsConnected = useStore((state) => state.setWsConnected);
   const setAgentStatus = useStore((state) => state.setAgentStatus);
 
   const connect = useCallback(() => {
     // Get WebSocket URL from server
-    fetch('/api/gateway/ws-url')
+    apiFetch('/api/gateway/ws-url')
       .then((res) => res.json())
       .then(({ url }) => {
         if (!url) {
@@ -48,7 +50,9 @@ export function useWebSocket() {
           wsRef.current.onclose = () => {
             console.log('WebSocket disconnected');
             setWsConnected(false);
-            attemptReconnect();
+            if (shouldReconnectRef.current) {
+              attemptReconnect();
+            }
           };
 
           wsRef.current.onerror = (error) => {
@@ -96,10 +100,12 @@ export function useWebSocket() {
   }, [connect]);
 
   const disconnect = useCallback(() => {
+    shouldReconnectRef.current = false;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
     if (wsRef.current) {
+      wsRef.current.onclose = null;
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -112,6 +118,7 @@ export function useWebSocket() {
   }, []);
 
   useEffect(() => {
+    shouldReconnectRef.current = true;
     connect();
     return () => disconnect();
   }, [connect, disconnect]);

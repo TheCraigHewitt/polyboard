@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { OpenClawConfig } from '../types';
 import { useStore } from '../store';
+import { apiFetch } from '../services/api';
 
 export function useOpenClawConfig() {
   const [config, setConfig] = useState<OpenClawConfig | null>(null);
@@ -11,7 +12,7 @@ export function useOpenClawConfig() {
   useEffect(() => {
     async function loadConfig() {
       try {
-        const response = await fetch('/api/config');
+        const response = await apiFetch('/api/config');
         if (!response.ok) {
           throw new Error('Failed to load OpenClaw config');
         }

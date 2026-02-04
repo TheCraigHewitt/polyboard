@@ -53,6 +53,10 @@ export interface OpenClawConfig {
   gateway?: {
     port?: number;
     authToken?: string;
+    auth?: {
+      token?: string;
+      password?: string;
+    };
   };
 }
 

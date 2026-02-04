@@ -13,6 +13,7 @@ import {
   getRecentSessions,
   readSessionTranscript,
 } from './services/fileService.js';
+import { normalizeTasksPayload } from './services/taskValidation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,11 +28,60 @@ function getClientPath(): string {
   return path.join(__dirname, 'client');
 }
 
-export function createServer() {
-  const app = express();
+interface ServerOptions {
+  host?: string;
+}
 
-  app.use(cors());
+function isLoopbackHost(host: string): boolean {
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function parseCorsOrigins(): string[] {
+  const raw = process.env.POLYBOARD_CORS_ORIGINS;
+  if (!raw) return [];
+  return raw.split(',').map((origin) => origin.trim()).filter(Boolean);
+}
+
+function sanitizeConfig(config: Awaited<ReturnType<typeof readOpenClawConfig>>) {
+  if (!config) return null;
+  return {
+    agents: config.agents,
+  };
+}
+
+export function createServer(options: ServerOptions = {}) {
+  const app = express();
+  const host = options.host || '127.0.0.1';
+  const token = process.env.POLYBOARD_API_TOKEN || '';
+  const requireAuth = Boolean(token);
+  const allowedOrigins = new Set(parseCorsOrigins());
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const allowed =
+        /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin) ||
+        allowedOrigins.has(origin);
+      callback(null, allowed);
+    },
+  }));
   app.use(express.json());
+
+  app.use('/api', (req, res, next) => {
+    if (!requireAuth) {
+      next();
+      return;
+    }
+    const authHeader = req.headers.authorization || '';
+    if (authHeader === `Bearer ${token}`) {
+      next();
+      return;
+    }
+    res.status(401).json({ error: 'Unauthorized' });
+  });
 
   // Serve static files in production
   const clientPath = getClientPath();
@@ -40,9 +90,9 @@ export function createServer() {
   // API Routes
 
   // Get OpenClaw config and path
-  app.get('/api/config', (_req: Request, res: Response) => {
+  app.get('/api/config', async (_req: Request, res: Response) => {
     const openclawPath = getOpenClawPath();
-    const config = readOpenClawConfig();
+    const config = await readOpenClawConfig();
 
     if (!config) {
       res.status(404).json({
@@ -53,29 +103,48 @@ export function createServer() {
       return;
     }
 
-    res.json({ config, path: openclawPath });
+    res.json({ config: sanitizeConfig(config), path: openclawPath });
   });
 
   // Tasks CRUD
-  app.get('/api/tasks', (_req: Request, res: Response) => {
-    const data = readTasks();
+  app.get('/api/tasks', async (_req: Request, res: Response) => {
+    const data = await readTasks();
     res.json(data);
   });
 
-  app.put('/api/tasks', (req: Request, res: Response) => {
-    const { tasks } = req.body;
-    if (!Array.isArray(tasks)) {
-      res.status(400).json({ error: 'Tasks must be an array' });
+  app.put('/api/tasks', async (req: Request, res: Response) => {
+    const { tasks, baseUpdatedAt } = req.body || {};
+    const normalizedTasks = normalizeTasksPayload(tasks);
+    if (!normalizedTasks) {
+      res.status(400).json({ error: 'Invalid tasks payload' });
       return;
     }
-    writeTasks(tasks);
-    res.json({ success: true });
+    if (typeof baseUpdatedAt !== 'string' || !baseUpdatedAt) {
+      res.status(428).json({ error: 'baseUpdatedAt required' });
+      return;
+    }
+
+    const current = await readTasks();
+    if (current.updatedAt !== baseUpdatedAt) {
+      res.status(409).json({
+        error: 'Tasks have changed',
+        current,
+      });
+      return;
+    }
+
+    const written = await writeTasks(normalizedTasks);
+    res.json({ success: true, updatedAt: written.updatedAt });
   });
 
   // Agent status
-  app.get('/api/agents/:agentId/status', (req: Request, res: Response) => {
+  app.get('/api/agents/:agentId/status', async (req: Request, res: Response) => {
     const agentId = req.params.agentId as string;
-    const status = readAgentStatus(agentId);
+    if (!/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+      res.status(400).json({ error: 'Invalid agentId' });
+      return;
+    }
+    const status = await readAgentStatus(agentId);
 
     if (!status) {
       res.status(404).json({ error: 'Status not found' });
@@ -86,9 +155,13 @@ export function createServer() {
   });
 
   // Agent identity/profile
-  app.get('/api/agents/:agentId/identity', (req: Request, res: Response) => {
+  app.get('/api/agents/:agentId/identity', async (req: Request, res: Response) => {
     const agentId = req.params.agentId as string;
-    const identity = readAgentIdentity(agentId);
+    if (!/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+      res.status(400).json({ error: 'Invalid agentId' });
+      return;
+    }
+    const identity = await readAgentIdentity(agentId);
 
     if (!identity) {
       res.status(404).json({ error: 'Identity not found' });
@@ -99,9 +172,13 @@ export function createServer() {
   });
 
   // Agent memory
-  app.get('/api/agents/:agentId/memory', (req: Request, res: Response) => {
+  app.get('/api/agents/:agentId/memory', async (req: Request, res: Response) => {
     const agentId = req.params.agentId as string;
-    const memory = readAgentMemory(agentId);
+    if (!/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+      res.status(400).json({ error: 'Invalid agentId' });
+      return;
+    }
+    const memory = await readAgentMemory(agentId);
 
     if (!memory) {
       res.status(404).json({ error: 'Memory not found' });
@@ -112,39 +189,75 @@ export function createServer() {
   });
 
   // Agent sessions
-  app.get('/api/agents/:agentId/sessions', (req: Request, res: Response) => {
+  app.get('/api/agents/:agentId/sessions', async (req: Request, res: Response) => {
     const agentId = req.params.agentId as string;
+    if (!/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+      res.status(400).json({ error: 'Invalid agentId' });
+      return;
+    }
     const limit = parseInt(req.query.limit as string) || 10;
-    const sessions = getRecentSessions(agentId, limit);
+    const sessions = await getRecentSessions(agentId, limit);
     res.json({ sessions });
   });
 
   // Session transcript
-  app.get('/api/sessions/transcript', (req: Request, res: Response) => {
-    const sessionPath = req.query.path as string;
+  app.get('/api/sessions/transcript', async (req: Request, res: Response) => {
+    const agentId = req.query.agentId as string;
+    const sessionId = req.query.sessionId as string;
     const maxLines = parseInt(req.query.maxLines as string) || 50;
 
-    if (!sessionPath) {
-      res.status(400).json({ error: 'Session path required' });
+    if (!agentId || !sessionId) {
+      res.status(400).json({ error: 'agentId and sessionId required' });
       return;
     }
 
-    const lines = readSessionTranscript(sessionPath, maxLines);
+    if (!/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+      res.status(400).json({ error: 'Invalid agentId' });
+      return;
+    }
+
+    const lines = await readSessionTranscript(agentId, sessionId, maxLines);
     res.json({ lines });
   });
 
   // Gateway WebSocket URL
-  app.get('/api/gateway/ws-url', (_req: Request, res: Response) => {
-    const config = readOpenClawConfig();
+  app.get('/api/gateway/ws-url', async (_req: Request, res: Response) => {
+    const config = await readOpenClawConfig();
     const port = config?.gateway?.port || 18789;
     res.json({ url: `ws://127.0.0.1:${port}` });
   });
 
   // Send message to agent via gateway
   app.post('/api/gateway/invoke', async (req: Request, res: Response) => {
-    const config = readOpenClawConfig();
+    const config = await readOpenClawConfig();
     const port = config?.gateway?.port || 18789;
-    const authToken = config?.gateway?.authToken;
+    const authToken =
+      config?.gateway?.authToken ||
+      config?.gateway?.auth?.token ||
+      config?.gateway?.auth?.password;
+    const allowedTools = new Set(
+      (process.env.POLYBOARD_ALLOWED_TOOLS || 'send_message')
+        .split(',')
+        .map((tool) => tool.trim())
+        .filter(Boolean)
+    );
+    const tool = req.body?.tool;
+    if (!tool || typeof tool !== 'string' || !allowedTools.has(tool)) {
+      res.status(400).json({ error: 'Tool not allowed' });
+      return;
+    }
+    const agentId = req.body?.agentId;
+    if (!agentId || typeof agentId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+      res.status(400).json({ error: 'Invalid agentId' });
+      return;
+    }
+    if (tool === 'send_message') {
+      const message = req.body?.params?.message;
+      if (!message || typeof message !== 'string') {
+        res.status(400).json({ error: 'Invalid message payload' });
+        return;
+      }
+    }
 
     try {
       const response = await fetch(`http://127.0.0.1:${port}/tools/invoke`, {
@@ -175,10 +288,14 @@ export function createServer() {
 }
 
 export function startServer(port: number | string = 3001) {
-  const app = createServer();
+  const host = process.env.HOST || '127.0.0.1';
+  if (!isLoopbackHost(host) && !process.env.POLYBOARD_API_TOKEN) {
+    console.warn('Warning: HOST is non-loopback without POLYBOARD_API_TOKEN set.');
+  }
+  const app = createServer({ host });
 
-  app.listen(port, () => {
-    console.log(`Polyboard API server running at http://localhost:${port}`);
+  app.listen(port, host, () => {
+    console.log(`Polyboard API server running at http://${host}:${port}`);
   });
 
   return app;

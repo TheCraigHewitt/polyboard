@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ActivityItem } from '../../types';
+import { apiFetch } from '../../services/api';
 
 interface ActivityFeedProps {
   agentId: string;
@@ -14,7 +15,7 @@ export function ActivityFeed({ agentId }: ActivityFeedProps) {
       setLoading(true);
       try {
         // Get recent sessions
-        const sessionsRes = await fetch(`/api/agents/${agentId}/sessions?limit=5`);
+        const sessionsRes = await apiFetch(`/api/agents/${agentId}/sessions?limit=5`);
         if (!sessionsRes.ok) {
           setActivities([]);
           return;
@@ -24,9 +25,9 @@ export function ActivityFeed({ agentId }: ActivityFeedProps) {
         const allActivities: ActivityItem[] = [];
 
         // Parse each session for activity
-        for (const sessionPath of sessions.slice(0, 3)) {
-          const transcriptRes = await fetch(
-            `/api/sessions/transcript?path=${encodeURIComponent(sessionPath)}&maxLines=20`
+        for (const sessionId of sessions.slice(0, 3)) {
+          const transcriptRes = await apiFetch(
+            `/api/sessions/transcript?agentId=${encodeURIComponent(agentId)}&sessionId=${encodeURIComponent(sessionId)}&maxLines=20`
           );
           if (transcriptRes.ok) {
             const { lines } = await transcriptRes.json();
@@ -40,7 +41,7 @@ export function ActivityFeed({ agentId }: ActivityFeedProps) {
 
                   if (content.trim()) {
                     allActivities.push({
-                      id: `${sessionPath}-${event.timestamp || Date.now()}`,
+                      id: `${sessionId}-${event.timestamp || Date.now()}`,
                       agentId,
                       type: 'message',
                       content: content.slice(0, 200),

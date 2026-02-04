@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../../services/api';
 
 interface MemoryViewerProps {
   agentId: string;
@@ -12,7 +13,7 @@ export function MemoryViewer({ agentId }: MemoryViewerProps) {
     async function loadMemory() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/agents/${agentId}/memory`);
+        const res = await apiFetch(`/api/agents/${agentId}/memory`);
         if (res.ok) {
           const { content } = await res.json();
           setMemory(content);

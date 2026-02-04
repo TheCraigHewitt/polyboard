@@ -32,6 +32,14 @@ Polyboard auto-discovers your OpenClaw installation at `~/.openclaw`. Override w
 OPENCLAW_CONFIG_PATH=/path/to/openclaw npx polyboard
 ```
 
+## Security Notes
+
+- Polyboard is designed to run on `127.0.0.1` by default. If you bind to a non-loopback `HOST`, you are exposing local OpenClaw data on your network.
+- You can protect the API by setting `POLYBOARD_API_TOKEN`. When set, all `/api/*` requests must include `Authorization: Bearer <token>`.
+- The UI will read a token from `localStorage` key `polyboardApiToken` if present (open browser console to set it).
+- Allowed gateway tools can be restricted with `POLYBOARD_ALLOWED_TOOLS` (comma-separated, defaults to `send_message`).
+- CORS can be extended via `POLYBOARD_CORS_ORIGINS` (comma-separated list of allowed origins).
+
 ## Development
 
 ```bash

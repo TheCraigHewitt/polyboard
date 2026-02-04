@@ -16,6 +16,7 @@
   "include": [
     "src/server.ts",
     "src/services/fileService.ts",
+    "src/services/taskValidation.ts",
     "src/types/index.ts",
     "bin/cli.ts",
     "vite.config.ts"
