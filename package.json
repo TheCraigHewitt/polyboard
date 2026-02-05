@@ -1,6 +1,6 @@
 {
   "name": "polyboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Real-time dashboard for managing OpenClaw multi-agent systems",
   "type": "module",
   "bin": {
