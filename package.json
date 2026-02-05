@@ -1,10 +1,10 @@
 {
   "name": "polyboard",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Real-time dashboard for managing OpenClaw multi-agent systems",
   "type": "module",
   "bin": {
-    "polyboard": "./dist/bin/cli.js"
+    "polyboard": "dist/bin/cli.js"
   },
   "files": [
     "dist"
