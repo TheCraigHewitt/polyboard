@@ -294,7 +294,8 @@ export function startServer(port: number | string = 3001) {
   }
   const app = createServer({ host });
 
-  app.listen(port, host, () => {
+  const resolvedPort = typeof port === 'string' ? Number.parseInt(port, 10) : port;
+  app.listen(resolvedPort, host, () => {
     console.log(`Polyboard API server running at http://${host}:${port}`);
   });
 

@@ -45,14 +45,32 @@ export function normalizeTask(input: unknown, strict = false): Task | null {
   if (!isTaskStatus(task.status)) return null;
   if (!isPipeline(task.pipeline)) return null;
 
-  const createdBy = isString(task.createdBy) ? task.createdBy : (strict ? null : 'unknown');
-  if (strict && !createdBy) return null;
+  let createdBy: string;
+  if (isString(task.createdBy)) {
+    createdBy = task.createdBy;
+  } else if (strict) {
+    return null;
+  } else {
+    createdBy = 'unknown';
+  }
 
-  const createdAt = isString(task.createdAt) ? task.createdAt : (strict ? null : now);
-  if (strict && !createdAt) return null;
+  let createdAt: string;
+  if (isString(task.createdAt)) {
+    createdAt = task.createdAt;
+  } else if (strict) {
+    return null;
+  } else {
+    createdAt = now;
+  }
 
-  const updatedAt = isString(task.updatedAt) ? task.updatedAt : (strict ? null : now);
-  if (strict && !updatedAt) return null;
+  let updatedAt: string;
+  if (isString(task.updatedAt)) {
+    updatedAt = task.updatedAt;
+  } else if (strict) {
+    return null;
+  } else {
+    updatedAt = now;
+  }
 
   const description = isString(task.description) && task.description.trim() ? task.description : undefined;
   const assignedTo = isString(task.assignedTo) && task.assignedTo.trim() ? task.assignedTo : undefined;
