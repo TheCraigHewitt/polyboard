@@ -134,27 +134,27 @@ describe('server API', () => {
   });
 
   it('validates gateway invoke payloads and allows listed tools', async () => {
-    process.env.POLYBOARD_ALLOWED_TOOLS = 'send_message';
+    process.env.POLYBOARD_ALLOWED_TOOLS = 'sessions_send';
     const app = createApp();
 
     const badTool = await requestJson(app, 'POST', '/api/gateway/invoke', {
       tool: 'delete_all',
-      agentId: 'agent1',
-      params: { message: 'x' },
+      sessionKey: 'agent1',
+      args: { sessionKey: 'agent1', message: 'x', timeoutSeconds: 0 },
     });
     expect(badTool.status).toBe(400);
 
-    const badAgent = await requestJson(app, 'POST', '/api/gateway/invoke', {
-      tool: 'send_message',
-      agentId: '../',
-      params: { message: 'x' },
+    const badSession = await requestJson(app, 'POST', '/api/gateway/invoke', {
+      tool: 'sessions_send',
+      sessionKey: '../',
+      args: { sessionKey: '../', message: 'x', timeoutSeconds: 0 },
     });
-    expect(badAgent.status).toBe(400);
+    expect(badSession.status).toBe(400);
 
     const badMessage = await requestJson(app, 'POST', '/api/gateway/invoke', {
-      tool: 'send_message',
-      agentId: 'agent1',
-      params: { message: 123 },
+      tool: 'sessions_send',
+      sessionKey: 'agent1',
+      args: { sessionKey: 'agent1', message: 123, timeoutSeconds: 0 },
     });
     expect(badMessage.status).toBe(400);
 
@@ -166,9 +166,9 @@ describe('server API', () => {
     (globalThis as any).fetch = fetchMock;
 
     const okRes = await requestJson(app, 'POST', '/api/gateway/invoke', {
-      tool: 'send_message',
-      agentId: 'agent1',
-      params: { message: 'hello' },
+      tool: 'sessions_send',
+      sessionKey: 'agent1',
+      args: { sessionKey: 'agent1', message: 'hello', timeoutSeconds: 0 },
     });
     expect(okRes.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);

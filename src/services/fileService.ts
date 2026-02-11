@@ -64,7 +64,9 @@ export async function readTasks(): Promise<TasksFile> {
       return { version: 1, tasks: [], updatedAt: emptyUpdatedAt };
     }
     const content = await fsp.readFile(filePath, 'utf-8');
-    return normalizeTasksFile(JSON.parse(content));
+    const stat = await fsp.stat(filePath);
+    const fileMtime = stat.mtime.toISOString();
+    return normalizeTasksFile(JSON.parse(content), fileMtime);
   } catch (err) {
     console.error('Failed to read tasks:', err);
     return { version: 1, tasks: [], updatedAt: emptyUpdatedAt };

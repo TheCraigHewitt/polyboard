@@ -227,7 +227,7 @@ export function createServer(options: ServerOptions = {}) {
     res.json({ url: `ws://127.0.0.1:${port}` });
   });
 
-  // Send message to agent via gateway
+  // Send message to agent via gateway (uses sessions_send tool)
   app.post('/api/gateway/invoke', async (req: Request, res: Response) => {
     const config = await readOpenClawConfig();
     const port = config?.gateway?.port || 18789;
@@ -236,7 +236,7 @@ export function createServer(options: ServerOptions = {}) {
       config?.gateway?.auth?.token ||
       config?.gateway?.auth?.password;
     const allowedTools = new Set(
-      (process.env.POLYBOARD_ALLOWED_TOOLS || 'send_message')
+      (process.env.POLYBOARD_ALLOWED_TOOLS || 'sessions_send')
         .split(',')
         .map((tool) => tool.trim())
         .filter(Boolean)
@@ -246,13 +246,13 @@ export function createServer(options: ServerOptions = {}) {
       res.status(400).json({ error: 'Tool not allowed' });
       return;
     }
-    const agentId = req.body?.agentId;
-    if (!agentId || typeof agentId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(agentId)) {
-      res.status(400).json({ error: 'Invalid agentId' });
+    const sessionKey = req.body?.sessionKey;
+    if (!sessionKey || typeof sessionKey !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(sessionKey)) {
+      res.status(400).json({ error: 'Invalid sessionKey' });
       return;
     }
-    if (tool === 'send_message') {
-      const message = req.body?.params?.message;
+    if (tool === 'sessions_send') {
+      const message = req.body?.args?.message;
       if (!message || typeof message !== 'string') {
         res.status(400).json({ error: 'Invalid message payload' });
         return;
@@ -260,13 +260,18 @@ export function createServer(options: ServerOptions = {}) {
     }
 
     try {
+      const gatewayPayload = {
+        tool: req.body.tool,
+        args: req.body.args,
+        sessionKey: req.body.sessionKey,
+      };
       const response = await fetch(`http://127.0.0.1:${port}/tools/invoke`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(gatewayPayload),
       });
 
       const data = await response.json();
@@ -293,10 +298,10 @@ export function startServer(port: number | string = 3001) {
     console.warn('Warning: HOST is non-loopback without POLYBOARD_API_TOKEN set.');
   }
   const app = createServer({ host });
+  const numericPort = typeof port === 'string' ? parseInt(port, 10) : port;
 
-  const resolvedPort = typeof port === 'string' ? Number.parseInt(port, 10) : port;
-  app.listen(resolvedPort, host, () => {
-    console.log(`Polyboard API server running at http://${host}:${port}`);
+  app.listen(numericPort, host, () => {
+    console.log(`Polyboard API server running at http://${host}:${numericPort}`);
   });
 
   return app;

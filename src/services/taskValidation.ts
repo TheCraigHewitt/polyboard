@@ -75,7 +75,9 @@ export function normalizeTask(input: unknown, strict = false): Task | null {
   }
 
   const description = isString(task.description) && task.description.trim() ? task.description : undefined;
-  const assignedTo = isString(task.assignedTo) && task.assignedTo.trim() ? task.assignedTo : undefined;
+  const assignedTo = isString(task.assignedTo) && task.assignedTo.trim() ? task.assignedTo
+    : isString(task.assignee) && task.assignee.trim() ? task.assignee
+    : undefined;
   const priority = isPriority(task.priority) ? task.priority : undefined;
   const tags = Array.isArray(task.tags) ? task.tags.filter(isString) : [];
   const notes = Array.isArray(task.notes)
@@ -100,14 +102,14 @@ export function normalizeTask(input: unknown, strict = false): Task | null {
   };
 }
 
-export function normalizeTasksFile(input: unknown): TasksFile {
-  const now = new Date().toISOString();
+export function normalizeTasksFile(input: unknown, fileMtime?: string): TasksFile {
+  const fallback = fileMtime || new Date().toISOString();
   if (!input || typeof input !== 'object') {
-    return { version: 1, tasks: [], updatedAt: now };
+    return { version: 1, tasks: [], updatedAt: fallback };
   }
   const data = input as Record<string, unknown>;
   const version = typeof data.version === 'number' && Number.isFinite(data.version) ? data.version : 1;
-  const updatedAt = isString(data.updatedAt) ? data.updatedAt : now;
+  const updatedAt = isString(data.updatedAt) ? data.updatedAt : fallback;
   const tasksArray = Array.isArray(data.tasks) ? data.tasks : [];
   const tasks = tasksArray
     .map((task) => normalizeTask(task, false))

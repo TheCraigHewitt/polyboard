@@ -15,6 +15,7 @@ export function AgentDetail() {
   const [identity, setIdentity] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedAgentId) {
@@ -39,26 +40,26 @@ export function AgentDetail() {
     if (!message.trim() || sending) return;
 
     setSending(true);
+    setSendError(null);
     try {
       const res = await apiFetch('/api/gateway/invoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agentId: selectedAgentId,
-          tool: 'send_message',
-          params: { message: message.trim() },
+          tool: 'sessions_send',
+          sessionKey: selectedAgentId,
+          args: { sessionKey: selectedAgentId, message: message.trim(), timeoutSeconds: 0 },
         }),
       });
 
       if (res.ok) {
         setMessage('');
-        // Could show success feedback
       } else {
-        // Could show error feedback
-        console.error('Failed to send message');
+        const data = await res.json().catch(() => null);
+        setSendError(data?.error || `Send failed (${res.status})`);
       }
     } catch (err) {
-      console.error('Failed to send message:', err);
+      setSendError('Failed to connect to gateway');
     } finally {
       setSending(false);
     }
@@ -123,6 +124,9 @@ export function AgentDetail() {
             {sending ? 'Sending...' : 'Send'}
           </button>
         </div>
+        {sendError && (
+          <p className="mt-1 text-xs text-red-400">{sendError}</p>
+        )}
       </div>
 
       {/* Tabs */}
