@@ -74,7 +74,7 @@ describe('useWebSocket', () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 200,
-      json: async () => ({ url: 'ws://localhost:1234' }),
+      json: async () => ({ url: '/api/gateway/ws' }),
     }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).fetch = fetchMock;
@@ -104,5 +104,116 @@ describe('useWebSocket', () => {
       result.current.disconnect();
     });
     expect(instance.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispatches custom event for agent_message type', async () => {
+    MockWebSocket.instances = [];
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ url: '/api/gateway/ws' }),
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).fetch = fetchMock;
+
+    const eventSpy = vi.fn();
+    window.addEventListener('polyboard:agent_message', eventSpy);
+
+    const { result } = renderHook(() => useWebSocket());
+
+    await waitFor(() => expect(MockWebSocket.instances.length).toBe(1));
+    const instance = MockWebSocket.instances[0];
+
+    act(() => {
+      instance.readyState = MockWebSocket.OPEN;
+      instance.onopen?.();
+    });
+
+    const payload = { agentId: 'agent1', content: 'hello from ws' };
+    act(() => {
+      instance.onmessage?.({
+        data: JSON.stringify({ type: 'agent_message', data: payload }),
+      });
+    });
+
+    expect(eventSpy).toHaveBeenCalledTimes(1);
+    const detail = (eventSpy.mock.calls[0][0] as CustomEvent).detail;
+    expect(detail).toEqual(payload);
+
+    window.removeEventListener('polyboard:agent_message', eventSpy);
+    act(() => { result.current.disconnect(); });
+  });
+
+  it('dispatches custom event for conversation_event type', async () => {
+    MockWebSocket.instances = [];
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ url: '/api/gateway/ws' }),
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).fetch = fetchMock;
+
+    const eventSpy = vi.fn();
+    window.addEventListener('polyboard:agent_message', eventSpy);
+
+    const { result } = renderHook(() => useWebSocket());
+
+    await waitFor(() => expect(MockWebSocket.instances.length).toBe(1));
+    const instance = MockWebSocket.instances[0];
+
+    act(() => {
+      instance.readyState = MockWebSocket.OPEN;
+      instance.onopen?.();
+    });
+
+    const payload = { agentId: 'agent2', content: 'conversation reply' };
+    act(() => {
+      instance.onmessage?.({
+        data: JSON.stringify({ type: 'conversation_event', data: payload }),
+      });
+    });
+
+    expect(eventSpy).toHaveBeenCalledTimes(1);
+    const detail = (eventSpy.mock.calls[0][0] as CustomEvent).detail;
+    expect(detail).toEqual(payload);
+
+    window.removeEventListener('polyboard:agent_message', eventSpy);
+    act(() => { result.current.disconnect(); });
+  });
+
+  it('does not dispatch event when agent_message data is not an object', async () => {
+    MockWebSocket.instances = [];
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ url: '/api/gateway/ws' }),
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).fetch = fetchMock;
+
+    const eventSpy = vi.fn();
+    window.addEventListener('polyboard:agent_message', eventSpy);
+
+    const { result } = renderHook(() => useWebSocket());
+
+    await waitFor(() => expect(MockWebSocket.instances.length).toBe(1));
+    const instance = MockWebSocket.instances[0];
+
+    act(() => {
+      instance.readyState = MockWebSocket.OPEN;
+      instance.onopen?.();
+    });
+
+    act(() => {
+      instance.onmessage?.({
+        data: JSON.stringify({ type: 'agent_message', data: 'not an object' }),
+      });
+    });
+
+    expect(eventSpy).not.toHaveBeenCalled();
+
+    window.removeEventListener('polyboard:agent_message', eventSpy);
+    act(() => { result.current.disconnect(); });
   });
 });

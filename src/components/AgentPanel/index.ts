@@ -1,3 +1,3 @@
 export { AgentDetail } from './AgentDetail';
-export { ActivityFeed } from './ActivityFeed';
+export { ChatPanel } from './ChatPanel';
 export { MemoryViewer } from './MemoryViewer';

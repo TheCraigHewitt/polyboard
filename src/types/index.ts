@@ -77,6 +77,14 @@ export interface ActivityItem {
   metadata?: Record<string, unknown>;
 }
 
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  status?: 'sending' | 'sent' | 'error';
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AppState {

@@ -74,3 +74,22 @@ Use `@/` to import from `src/`:
 import { useStore } from '@/store';
 import type { Task } from '@/types';
 ```
+
+## Remote Access & Security
+
+Polyboard supports secure remote access via TLS + token auth. See `docs/REMOTE_ACCESS.md` for setup guide.
+
+### Environment Variables
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `HOST` | No | `127.0.0.1` | Bind address |
+| `PORT` | No | `3001` | Server port |
+| `POLYBOARD_API_TOKEN` | No | - | API authentication token |
+| `POLYBOARD_TLS_CERT` | No | - | Path to TLS certificate PEM |
+| `POLYBOARD_TLS_KEY` | No | - | Path to TLS private key PEM |
+| `POLYBOARD_TLS_CA` | No | - | Path to CA cert for mutual TLS |
+| `POLYBOARD_SESSION_SECRET` | No | derived from API token | Secret for signing session cookies |
+| `POLYBOARD_CORS_ORIGINS` | No | - | Comma-separated allowed origins |
+
+Non-loopback `HOST` requires both `POLYBOARD_API_TOKEN` and TLS (cert + key).

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../src/server.js', () => ({
-  startServer: vi.fn(),
+  startServer: vi.fn(() => ({ httpServer: null, app: null, tls: false })),
 }));
 
 describe('cli', () => {

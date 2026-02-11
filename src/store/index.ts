@@ -45,6 +45,12 @@ interface AppStore {
   setWsConnected: (connected: boolean) => void;
   openclawPath: string | null;
   setOpenclawPath: (path: string | null) => void;
+
+  // Auth (not persisted)
+  authenticated: boolean;
+  setAuthenticated: (authenticated: boolean) => void;
+  requiresAuth: boolean;
+  setRequiresAuth: (required: boolean) => void;
 }
 
 export const useStore = create<AppStore>()(
@@ -108,6 +114,12 @@ export const useStore = create<AppStore>()(
       setWsConnected: (connected) => set({ wsConnected: connected }),
       openclawPath: null,
       setOpenclawPath: (path) => set({ openclawPath: path }),
+
+      // Auth
+      authenticated: false,
+      setAuthenticated: (authenticated) => set({ authenticated }),
+      requiresAuth: false,
+      setRequiresAuth: (required) => set({ requiresAuth: required }),
     }),
     {
       name: 'polyboard-storage',

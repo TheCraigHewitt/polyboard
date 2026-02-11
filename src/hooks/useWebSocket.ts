@@ -29,8 +29,35 @@ export function useWebSocket() {
           return;
         }
 
+        // Construct absolute WS URL from relative path; reject external URLs
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        let wsUrl: string;
+        if (url.startsWith('/')) {
+          wsUrl = `${protocol}//${window.location.host}${url}`;
+        } else {
+          // Validate absolute URLs are same-origin
+          try {
+            const parsed = new URL(url);
+            if (parsed.host !== window.location.host) {
+              console.error('Rejected external WebSocket URL');
+              return;
+            }
+          } catch {
+            console.error('Invalid WebSocket URL');
+            return;
+          }
+          wsUrl = url;
+        }
+
+        // Append auth token if set
+        const token = window.localStorage.getItem('polyboardApiToken');
+        if (token) {
+          const sep = wsUrl.includes('?') ? '&' : '?';
+          wsUrl += `${sep}token=${encodeURIComponent(token)}`;
+        }
+
         try {
-          wsRef.current = new WebSocket(url);
+          wsRef.current = new WebSocket(wsUrl);
 
           wsRef.current.onopen = () => {
             console.log('WebSocket connected to gateway');
@@ -79,6 +106,16 @@ export function useWebSocket() {
         break;
       case 'task_update':
         // Handled by file watcher / polling
+        break;
+      case 'agent_message':
+      case 'conversation_event':
+        if (message.data && typeof message.data === 'object') {
+          window.dispatchEvent(
+            new CustomEvent('polyboard:agent_message', {
+              detail: message.data,
+            })
+          );
+        }
         break;
       default:
         console.log('Unknown WebSocket message type:', message.type);

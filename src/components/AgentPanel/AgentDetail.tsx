@@ -2,20 +2,17 @@ import { useState, useEffect } from 'react';
 import { useAgents } from '../../hooks';
 import { useStore } from '../../store';
 import { StatusIndicator } from '../Sidebar/StatusIndicator';
-import { ActivityFeed } from './ActivityFeed';
+import { ChatPanel } from './ChatPanel';
 import { MemoryViewer } from './MemoryViewer';
 import { apiFetch } from '../../services/api';
 
-type Tab = 'activity' | 'memory' | 'identity';
+type Tab = 'chat' | 'memory' | 'identity';
 
 export function AgentDetail() {
   const { selectedAgent, selectedAgentId, getAgentStatus } = useAgents();
   const setPanelCollapsed = useStore((state) => state.setPanelCollapsed);
-  const [activeTab, setActiveTab] = useState<Tab>('activity');
+  const [activeTab, setActiveTab] = useState<Tab>('chat');
   const [identity, setIdentity] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedAgentId) {
@@ -36,37 +33,8 @@ export function AgentDetail() {
 
   const status = getAgentStatus(selectedAgentId);
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || sending) return;
-
-    setSending(true);
-    setSendError(null);
-    try {
-      const res = await apiFetch('/api/gateway/invoke', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tool: 'sessions_send',
-          sessionKey: selectedAgentId,
-          args: { sessionKey: selectedAgentId, message: message.trim(), timeoutSeconds: 0 },
-        }),
-      });
-
-      if (res.ok) {
-        setMessage('');
-      } else {
-        const data = await res.json().catch(() => null);
-        setSendError(data?.error || `Send failed (${res.status})`);
-      }
-    } catch (err) {
-      setSendError('Failed to connect to gateway');
-    } finally {
-      setSending(false);
-    }
-  };
-
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'activity', label: 'Activity' },
+    { id: 'chat', label: 'Chat' },
     { id: 'memory', label: 'Memory' },
     { id: 'identity', label: 'Identity' },
   ];
@@ -104,31 +72,6 @@ export function AgentDetail() {
         )}
       </div>
 
-      {/* Message Input */}
-      <div className="p-4 border-b border-border-color">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Send message to agent..."
-            className="flex-1 bg-board-bg border border-border-color rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-            disabled={sending}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={sending || !message.trim()}
-            className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sending ? 'Sending...' : 'Send'}
-          </button>
-        </div>
-        {sendError && (
-          <p className="mt-1 text-xs text-red-400">{sendError}</p>
-        )}
-      </div>
-
       {/* Tabs */}
       <div className="flex border-b border-border-color">
         {tabs.map((tab) => (
@@ -147,9 +90,9 @@ export function AgentDetail() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === 'activity' && (
-          <ActivityFeed agentId={selectedAgentId} />
+      <div className={`flex-1 ${activeTab === 'chat' ? 'overflow-hidden' : 'overflow-y-auto p-4'}`}>
+        {activeTab === 'chat' && (
+          <ChatPanel agentId={selectedAgentId} />
         )}
         {activeTab === 'memory' && (
           <MemoryViewer agentId={selectedAgentId} />

@@ -6,5 +6,9 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  return fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers, credentials: 'include' });
+  if (response.status === 401) {
+    window.dispatchEvent(new CustomEvent('polyboard:unauthorized'));
+  }
+  return response;
 }
