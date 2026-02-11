@@ -25,7 +25,7 @@ const columns: { id: TaskStatus; title: string }[] = [
 ];
 
 export function KanbanBoard() {
-  const { tasks, createTask, updateTask, deleteTask, moveTask, getTasksByStatus } = useTasks();
+  const { tasks, createTask, updateTask, deleteTask, moveTask, addNote, getTasksByStatus } = useTasks();
   const setSelectedTaskId = useStore((state) => state.setSelectedTaskId);
   const setPanelCollapsed = useStore((state) => state.setPanelCollapsed);
 
@@ -115,6 +115,21 @@ export function KanbanBoard() {
     }
   }, [editingTask, deleteTask, setSelectedTaskId]);
 
+  const handleAddNote = useCallback((content: string, mentions: string[]) => {
+    if (!editingTask) return;
+    const note = addNote(editingTask.id, content, mentions);
+    // Update local state so modal reflects the new note immediately
+    setEditingTask((prev) => {
+      if (!prev) return prev;
+      const newParticipants = [...new Set([...prev.participants, ...mentions])];
+      return {
+        ...prev,
+        notes: [...prev.notes, note],
+        participants: newParticipants,
+      };
+    });
+  }, [editingTask, addNote]);
+
   return (
     <div className="h-full p-4">
       <DndContext
@@ -155,6 +170,7 @@ export function KanbanBoard() {
         }}
         onSave={handleSaveTask}
         onDelete={editingTask ? handleDeleteTask : undefined}
+        onAddNote={editingTask ? handleAddNote : undefined}
       />
     </div>
   );

@@ -15,10 +15,12 @@ function normalizeTaskNote(input: unknown): TaskNote | null {
   if (!isString(note.authorId)) return null;
   if (!isString(note.content)) return null;
   if (!isString(note.createdAt)) return null;
+  const mentions = Array.isArray(note.mentions) ? note.mentions.filter(isString) : [];
   return {
     id: note.id,
     authorId: note.authorId,
     content: note.content,
+    mentions,
     createdAt: note.createdAt,
   };
 }
@@ -79,6 +81,7 @@ export function normalizeTask(input: unknown, strict = false): Task | null {
   const notes = Array.isArray(task.notes)
     ? task.notes.map(normalizeTaskNote).filter((note): note is TaskNote => Boolean(note))
     : [];
+  const participants = Array.isArray(task.participants) ? task.participants.filter(isString) : [];
 
   return {
     id: task.id,
@@ -91,6 +94,7 @@ export function normalizeTask(input: unknown, strict = false): Task | null {
     priority,
     tags,
     notes,
+    participants,
     createdAt,
     updatedAt,
   };

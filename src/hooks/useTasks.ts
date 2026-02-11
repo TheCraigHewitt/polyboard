@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useStore } from '../store';
-import type { Task, TaskStatus } from '../types';
+import type { Task, TaskNote, TaskStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiFetch } from '../services/api';
 
@@ -131,6 +131,7 @@ export function useTasks() {
       pipeline: 'general',
       tags: [],
       notes: [],
+      participants: [],
       createdAt: now,
       updatedAt: now,
       ...options,
@@ -150,6 +151,28 @@ export function useTasks() {
   const moveTask = useCallback((taskId: string, newStatus: TaskStatus) => {
     moveTaskInStore(taskId, newStatus);
   }, [moveTaskInStore]);
+
+  const addNote = useCallback((taskId: string, content: string, mentions: string[]): TaskNote => {
+    const now = new Date().toISOString();
+    const note: TaskNote = {
+      id: uuidv4(),
+      authorId: 'human',
+      content,
+      mentions,
+      createdAt: now,
+    };
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) {
+      const newParticipants = [...new Set([...task.participants, ...mentions])];
+      updateTaskInStore(taskId, {
+        notes: [...task.notes, note],
+        participants: newParticipants,
+      });
+    }
+
+    return note;
+  }, [tasks, updateTaskInStore]);
 
   // Filtered tasks
   const filteredTasks = tasks.filter((task) => {
@@ -173,6 +196,7 @@ export function useTasks() {
     updateTask,
     deleteTask,
     moveTask,
+    addNote,
     getTasksByStatus,
   };
 }

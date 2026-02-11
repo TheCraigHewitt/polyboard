@@ -74,19 +74,52 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       )}
 
       <div className="flex items-center justify-between">
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full ${pipelineColors[task.pipeline]}`}
-        >
-          {task.pipeline}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full ${pipelineColors[task.pipeline]}`}
+          >
+            {task.pipeline}
+          </span>
 
-        {assignedAgent && (
-          <div className="flex items-center gap-1">
+          {task.notes.length > 0 && (
+            <span className="flex items-center gap-0.5 text-xs text-text-secondary">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              {task.notes.length}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {task.participants.length > 0 && (
+            <div className="flex -space-x-1.5">
+              {task.participants.slice(0, 3).map((pid) => {
+                const agent = agents.find((a) => a.id === pid);
+                return (
+                  <div
+                    key={pid}
+                    className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs ring-1 ring-card-bg"
+                    title={agent?.name || pid}
+                  >
+                    {(agent?.name || pid).charAt(0).toUpperCase()}
+                  </div>
+                );
+              })}
+              {task.participants.length > 3 && (
+                <div className="w-5 h-5 rounded-full bg-board-bg flex items-center justify-center text-text-secondary text-xs ring-1 ring-card-bg">
+                  +{task.participants.length - 3}
+                </div>
+              )}
+            </div>
+          )}
+
+          {assignedAgent && (
             <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center text-white text-xs">
               {assignedAgent.name.charAt(0).toUpperCase()}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {task.tags.length > 0 && (

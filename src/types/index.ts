@@ -9,6 +9,7 @@ export interface Task {
   priority?: Priority;
   tags: string[];
   notes: TaskNote[];
+  participants: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -21,6 +22,7 @@ export interface TaskNote {
   id: string;
   authorId: string;
   content: string;
+  mentions: string[];
   createdAt: string;
 }
 
